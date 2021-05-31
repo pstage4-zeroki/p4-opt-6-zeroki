@@ -24,6 +24,7 @@ from src.utils.torch_utils import check_runtime, model_info
 
 import optuna
 import joblib
+import wandb
 
 def train(
     model_config: Dict[str, Any],
@@ -106,17 +107,28 @@ class Objective:
         self.model_config = model_config
         self.data_config = data_config        
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.change_once = True
+        self.config = {}
         
     def __call__(self,trial):
         # model_config 와 data_config 파일을 trial_suggest_form으로 바꿈.
         model_config_suggest, data_config_suggest= self.trial_suggest_form(trial)
-
-        log_dir = os.path.join("exp", datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-        os.makedirs(log_dir, exist_ok=True)
-        
         print(data_config_suggest)
 
+        for i,j in data_config_suggest.items(): 
+            if i in self.config.keys():
+                self.config[i] = j
+        print(self.config)         
+
+        log_dir = os.path.join("exp", datetime.now().strftime(f"No_Trial_{trial.number}_%Y-%m-%d_%H-%M-%S"))
+        os.makedirs(log_dir, exist_ok=True)
+
+        # Starting WandB run.
+        run = wandb.init(project='bohyeon', 
+                        entity='zeroki',
+                         name=f'No_Trial_{trial.number}',
+                         group="sampling",
+                         config=self.config,
+                         reinit=True)
         try:
             test_loss, test_f1, test_acc,macs = train(
                 model_config=model_config_suggest,
@@ -132,6 +144,10 @@ class Objective:
             macs=nan
             pass
 
+        # WandB logging.
+        with run:
+            run.log({"test_f1": test_f1, "macs": macs}, step=trial.number)
+
         return test_f1,macs
 
     def trial_suggest_form(self,trial):
@@ -143,6 +159,7 @@ class Objective:
                 if j['suggest']==True:
                     trial_suggest_func=getattr(trial,j['suggest_type'])
                     data_config[i] = trial_suggest_func(i,*j['value'])
+                    self.config[i] = data_config[i]
                     print(f'{i} parameter is on trial_suggest.')
             except:
                 data_config[i]=j
@@ -166,5 +183,7 @@ if __name__ == "__main__":
 
     study = optuna.create_study(directions=['maximize','minimize'],pruner=optuna.pruners.MedianPruner(
         n_startup_trials=1, n_warmup_steps=0, interval_steps=1))
-    study.optimize(func=Objective(model_config,data_config), n_trials=4)
+    study.optimize(func=Objective(model_config,data_config), n_trials=10)
     joblib.dump(study, '/opt/ml/code/test_optuna.pkl')
+
+
