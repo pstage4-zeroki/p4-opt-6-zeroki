@@ -255,7 +255,7 @@ class TorchTrainer:
 
         wandb.log({
             'Valid Loss value': loss,
-            'Valid Acc value': accuracy,
+            'Valid Acc value': accuracy * 100,
             'Valid F1 value': f1
         })
         
