@@ -8,7 +8,7 @@ from datetime import datetime
 import os
 import yaml
 from typing import Any, Dict, Tuple, Union
-
+import wandb
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -19,8 +19,7 @@ from src.model import Model
 from src.trainer import TorchTrainer
 from src.utils.common import get_label_counts, read_yaml
 from src.utils.macs import calc_macs
-from src.utils.torch_utils import check_runtime, model_info
-
+from src.utils.torch_utils import check_runtime, model_info, seed_everything
 
 def train(
     model_config: Dict[str, Any],
@@ -36,6 +35,8 @@ def train(
     with open(os.path.join(log_dir, 'model.yml'), 'w') as f:
         yaml.dump(model_config, f, default_flow_style=False)
 
+    #for reproductin 
+    seed_everything(data_config['SEED'])
     model_instance = Model(model_config, verbose=True)
     model_path = os.path.join(log_dir, "best.pt")
     print(f"Model save path: {model_path}")
@@ -105,14 +106,28 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data", default="configs/data/taco.yaml", type=str, help="data config"
     )
+    parser.add_argument(
+        "--run_name", default="base", type=str, help="run name for wandb"
+    )
+    parser.add_argument(
+        "--save_name", default="base", type=str, help="save name"
+    )
     args = parser.parse_args()
 
     model_config = read_yaml(cfg=args.model)
     data_config = read_yaml(cfg=args.data)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    log_dir = os.path.join("exp", datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    log_dir = os.path.join("exp", args.save_name + '_' + datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    print(log_dir)
     os.makedirs(log_dir, exist_ok=True)
+
+    # for wandb
+    wandb.init(project='zeroki', entity='zeroki', name = args.run_name , save_code = True)
+    wandb.run.name = args.run_name
+    wandb.run.save()
+    wandb.config.update(model_config)
+    wandb.config.update(data_config)
 
     test_loss, test_f1, test_acc = train(
         model_config=model_config,

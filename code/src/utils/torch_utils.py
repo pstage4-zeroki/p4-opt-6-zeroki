@@ -12,7 +12,7 @@ import numpy as np
 import torch
 from torch import nn as nn
 from torch.utils.data import Subset
-
+import random
 
 def split_dataset_index(
     train_dataset: torch.utils.data.Dataset, n_data: int, split_ratio: float = 0.1
@@ -163,7 +163,15 @@ class Activation:
                 __import__("src.modules.activations", fromlist=[""]), self.type
             )()
 
-
+def seed_everything(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
+    
 if __name__ == "__main__":
     # test
     check_runtime(None, [32, 32] + [3])
