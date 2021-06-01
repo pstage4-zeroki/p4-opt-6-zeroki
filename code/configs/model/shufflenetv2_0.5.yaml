@@ -1,0 +1,23 @@
+input_channel: 3
+
+depth_multiple: 1.0
+width_multiple: 1.0
+
+backbone:
+    # [repeat, module, args]
+    [
+        [1, Conv, [24, 3, 2, null, 1, "ReLU"]],
+        #kernel_size , stride , padding
+        [1,MaxPool, [2,2,0]],
+        # output_channel , stride
+        [1, ShuffleNetV2, [48, 2]],
+        [3, ShuffleNetV2, [48, 1]],
+        [1, ShuffleNetV2, [96, 2]],
+        [7, ShuffleNetV2, [96, 1]],
+        [1, ShuffleNetV2, [192, 2]],
+        [3, ShuffleNetV2, [192, 1]],
+        [1, Conv, [1024, 1, 1]],
+        [1, GlobalAvgPool, []],
+        [1, Flatten, []],
+        [1, Linear, [9]]
+    ]

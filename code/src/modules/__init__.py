@@ -17,6 +17,15 @@ from src.modules.mbconv import (
     MBConv,
     MBConvGenerator,
 )
+from src.modules.fusedmbconv import (
+    FusedMBConv,
+    FusedMBConvGenerator,
+)
+from src.modules.shufflev2 import (
+    ShuffleNetV2,
+    ShuffleNetV2Generator,
+)
+
 from src.modules.linear import Linear, LinearGenerator
 from src.modules.poolings import (
     AvgPoolGenerator,
@@ -47,5 +56,9 @@ __all__ = [
     "InvertedResidualv2Generator",
     "InvertedResidualv3Generator",
     "MBConvGenerator",
-    "MBConv"
+    "MBConv",
+    "FusedMBConv",
+    "FusedMBConvGenerator",
+    "ShuffleNetV2",
+    "ShuffleNetV2Generator",
 ]
