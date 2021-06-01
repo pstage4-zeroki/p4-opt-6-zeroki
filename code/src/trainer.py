@@ -18,9 +18,10 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.sampler import SequentialSampler, SubsetRandomSampler
 import torchvision
 from tqdm import tqdm
+import wandb
 
 from src.utils.torch_utils import save_model
-
+from src.utils.common import get_learning_rate
 
 def _get_n_data_from_dataloader(dataloader: DataLoader) -> int:
     """Get a number of data in dataloader.
@@ -160,6 +161,16 @@ class TorchTrainer:
                 gt += labels.to("cpu").tolist()
 
                 running_loss += loss.item()
+                
+                # wandb 
+                wandb.log({
+                    'Learning rate': get_learning_rate(self.optimizer)[0],
+                    'Train Loss value': running_loss / (batch + 1),
+                    'Train Acc value': (correct / total) * 100,
+                    'Train F1 value' : f1_score(y_true=gt, y_pred=preds, labels=label_list, average='macro', zero_division=0)
+                })
+                
+                #progress bar
                 pbar.update()
                 pbar.set_description(
                     f"Train: [{epoch + 1:03d}] "
@@ -241,6 +252,13 @@ class TorchTrainer:
         f1 = f1_score(
             y_true=gt, y_pred=preds, labels=label_list, average="macro", zero_division=0
         )
+
+        wandb.log({
+            'Valid Loss value': loss,
+            'Valid Acc value': accuracy * 100,
+            'Valid F1 value': f1
+        })
+        
         return loss, f1, accuracy
 
 
