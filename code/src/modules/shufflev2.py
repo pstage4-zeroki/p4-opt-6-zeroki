@@ -12,7 +12,7 @@ from src.modules.base_generator import GeneratorAbstract
 from src.utils.torch_utils import make_divisible
 
 class ShuffleNetV2(nn.Module):
-    def __init__(self, inp, oup, stride):
+    def __init__(self, inp, stride):
         super().__init__()
         assert stride in [1, 2]
         self.stride = stride
@@ -96,7 +96,7 @@ class ShuffleNetV2Generator(GeneratorAbstract):
     @property
     def out_channel(self) -> int:
         """Get out channel size."""
-        return self._get_divisible_channel(self.args[0] * self.width_multiply)
+        return self._get_divisible_channel(self.in_channel * self.width_multiply * self.args[0])
 
     @property
     def base_module(self) -> nn.Module:
@@ -105,15 +105,14 @@ class ShuffleNetV2Generator(GeneratorAbstract):
 
     def __call__(self, repeat: int = 1):
         module = []
-        _, s = self.args  # c is equivalent as self.out_channel
-        inp, oup = self.in_channel, self.out_channel
+        s = self.args[0]  # c is equivalent as self.out_channel
+        inp, _ = self.in_channel, self.out_channel
         for i in range(repeat):
             module.append(
                 self.base_module(
                     inp=inp,
-                    oup=oup,
                     stride=s
                 )
             )
-            inp = oup
+            inp = inp*s
         return self._get_module(module)
