@@ -13,10 +13,10 @@ backbone:
         [1, ShuffleNetV2, [48, 2]],
         [3, ShuffleNetV2, [48, 1]],
         [1, ShuffleNetV2, [96, 2]],
-        [7, ShuffleNetV2, [96, 1]],
+        [5, ShuffleNetV2, [96, 1]],
         [1, ShuffleNetV2, [192, 2]],
         [3, ShuffleNetV2, [192, 1]],
-        [1, Conv, [1024, 1, 1]],
+        [1, Conv, [512, 1, 1]],
         [1, GlobalAvgPool, []],
         [1, Flatten, []],
         [1, Linear, [9]]
