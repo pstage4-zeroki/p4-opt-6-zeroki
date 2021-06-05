@@ -23,6 +23,31 @@ import wandb
 import optuna
 import joblib
 import inspect
+import argparse
+from datetime import datetime
+import os
+import yaml
+from typing import Any, Dict, Tuple, Union
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+from src.dataloader import create_dataloader
+from src.loss import CustomCriterion
+from src.model import Model
+from src.trainer import TorchTrainer
+from src.utils.common import get_label_counts, read_yaml
+from src.utils.macs import calc_macs
+from src.utils.torch_utils import check_runtime, model_info, seed_everything
+from src.scheduler import CosineAnnealingWarmupRestarts
+import src
+import src.modules
+
+import wandb
+import optuna
+import joblib
+import inspect
 
 import copy
 import tensorly as tl
@@ -49,6 +74,9 @@ def tucker_decomposition_conv_layer(
     returns a nn.Sequential object with the Tucker decomposition.
     rank를 받아서 그 rank에 받게 decompositoin한 conv layer들을 sequential 형태로 return 해줌
     """
+    if layer.groups != 1:
+        return layer
+
     if hasattr(layer, "rank"):
         normed_rank = getattr(layer, "rank")
     rank = [int(r * layer.weight.shape[i]) for i, r in enumerate(normed_rank)] # channel * normalized rank
@@ -167,14 +195,13 @@ def decompose(module: nn.Module):
 
 
 class Objective:
-    def __init__(self, model_config, data_config, model_path):     
+    def __init__(self, model_instance, data_config):     
         
-        self.model_instance = Model(model_config, verbose=True) 
+        self.model_instance = model_instance # 학습된 원 모델
         self.idx_layer = 0
         self.data_config = data_config
         self.config = {}
-        self.model_path = model_path # 학습된 원 모델 불러옴 (그냥 모델 불러오는 게 더 좋을까요?)
-
+        
         macs = calc_macs(self.model_instance.model, (3, self.data_config["IMG_SIZE"], self.data_config["IMG_SIZE"]))
         print(f"before decomposition macs: {macs}")  
         tl.set_backend('pytorch')
@@ -193,15 +220,10 @@ class Objective:
                 rank1, rank2=self.search_rank(trial)        
             if isinstance(param, nn.Conv2d):   
                 param.register_buffer('rank', torch.Tensor([rank1, rank2])) # rank in, out
-
                 
        ################### decompose model 불러오는 함수 #####################         
-        origin_model_instance = Model(model_config, verbose=True)
-        if os.path.isfile(self.model_path):
-            origin_model_instance.model.load_state_dict(torch.load(self.model_path))
-        origin_model_instance.model.to(device)
-        
-        decompose_model.model = decompose(origin_model_instance.model)
+     
+        decompose_model.model = decompose(decompose_model.model)
         decompose_model.model.to(device)
         print('---------decompose model check ------------')
         print(decompose_model.model)
@@ -234,11 +256,7 @@ class Objective:
         '''
         self.config = {}
         print('check seaching para initialized : \n', self.config) 
-        return mse_err, macs
-
-    def get_model_mainfobefore_decomposition(self, model_instance):
-        macs = calc_macs(model_instance, (3, data_config["IMG_SIZE"], data_config["IMG_SIZE"]))
-        print(f"macs: {macs}")        
+        return mse_err, macs    
 
     def search_rank(self,trial):
         para_name1 = f'{self.idx_layer}_layer_rank1'
@@ -249,16 +267,17 @@ class Objective:
         self.config[para_name2]=rank2      
         return rank1, rank2
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="findRank.")
     parser.add_argument(
-        "--weight", type=str, help="model weight path"
+        "--weight", default="/opt/ml/p4-opt-6-zeroki/code/exp/base_2021-06-03_03-17-29/best.pt", type=str, help="model weight path"
     )
     parser.add_argument(
-        "--model_config",default="/opt/ml/p4-opt-6-zeroki/code/configs/model/shufflenetv2_0.5.yaml", type=str, help="model config path"
+        "--model_config",default="/opt/ml/p4-opt-6-zeroki/code/exp/base_2021-06-03_03-17-29/model.yml", type=str, help="model config path"
     )
     parser.add_argument(
-        "--data_config", default="/opt/ml/p4-opt-6-zeroki/code/configs/data/taco_96.yaml", type=str, help="data config used for training."
+        "--data_config", default="/opt/ml/p4-opt-6-zeroki/code/exp/base_2021-06-03_03-17-29/data.yml", type=str, help="dataconfig used for training."
     )
     parser.add_argument(
         "--run_name", default="rank_decomposition", type=str, help="run name for wandb"
@@ -266,16 +285,18 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_name", default="rank_decomposition", type=str, help="save name"
     )
-    
-    args = parser.parse_args()
 
-    model_config = read_yaml(cfg=args.model_config) # 
+    args = parser.parse_args()
     data_config = read_yaml(cfg=args.data_config) # 학습시 이미지 사이즈 몇이었는지 확인하는 용도.
 
+     # 학습된 모델(weight같이) 불러 옴 
+    model_instance = Model(args.model_config, verbose=True)
+    model_instance.model.load_state_dict(torch.load(args.weight, map_location=torch.device('cpu')))
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-   
+
     ############################################################################################################
     study = optuna.create_study(directions=['minimize','minimize'],pruner=optuna.pruners.MedianPruner(
     n_startup_trials=5, n_warmup_steps=5, interval_steps=5))
-    study.optimize(func=Objective(model_config, data_config,args.weight), n_trials=2)
-    joblib.dump(study, '/opt/ml/code/test_optuna.pkl')
+    study.optimize(func=Objective(model_instance, data_config), n_trials=2)
+    joblib.dump(study, '/opt/ml/code/decomposition_optuna.pkl')
