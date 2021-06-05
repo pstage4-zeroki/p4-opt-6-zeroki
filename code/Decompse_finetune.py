@@ -1,21 +1,3 @@
-import argparse
-from datetime import datetime
-import os
-import yaml
-from typing import Any, Dict, Tuple, Union
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-
-from src.dataloader import create_dataloader
-from src.loss import CustomCriterion
-from src.model import Model
-from src.trainer import TorchTrainer
-from src.utils.common import get_label_counts, read_yaml
-from src.utils.macs import calc_macs
-from src.utils.torch_utils import check_runtime, model_info, seed_everything
-from src.scheduler import CosineAnnealingWarmupRestarts
 import src
 import src.modules
 
@@ -31,16 +13,11 @@ from typing import Any, Dict, Tuple, Union
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
 
-from src.dataloader import create_dataloader
-from src.loss import CustomCriterion
+
 from src.model import Model
-from src.trainer import TorchTrainer
-from src.utils.common import get_label_counts, read_yaml
+from src.utils.common import read_yaml
 from src.utils.macs import calc_macs
-from src.utils.torch_utils import check_runtime, model_info, seed_everything
-from src.scheduler import CosineAnnealingWarmupRestarts
 import src
 import src.modules
 
@@ -48,13 +25,11 @@ import wandb
 import optuna
 import joblib
 import inspect
-
 import copy
 import tensorly as tl
 from tensorly.decomposition import parafac, partial_tucker
 from typing import List
 from train import train
-
 import warnings 
 warnings.filterwarnings('ignore')
 
@@ -65,6 +40,31 @@ MODULE_LIST = []
 for name, obj in inspect.getmembers(src.modules): 
     if inspect.isclass(obj):
         MODULE_LIST.append(obj)
+
+class group_decomposition_conv(nn.Module):
+    def __init__(self, group_decomp_list, in_channel, group_num) -> None:
+        super().__init__()
+        self.group_decomp_list = group_decomp_list
+        self.in_channel = in_channel
+        self.group_num = group_num
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        feature_depth=x.shape[2]
+        input_grouped=torch.split(x,feature_depth//self.group_num,1)      
+
+        out = torch.Tensor()
+        for group_id in range(self.group_num) :
+            #print(input_grouped[group_id].shape)
+            #print(type(input_grouped[group_id]))
+            #print(self.group_decomp_list[group_id])
+            #print(type(self.group_decomp_list[group_id]))
+            
+            #여기서 부터 멈춰서 그 다음 확인 못하는 중 입니다.환장포인트
+            group_out = self.group_decomp_list[group_id].to(input_grouped[group_id])
+           
+            out = torch.cat((out, group_out),0)
+
+        return out
         
 def tucker_decomposition_conv_layer(
       layer: nn.Module,
@@ -74,8 +74,23 @@ def tucker_decomposition_conv_layer(
     returns a nn.Sequential object with the Tucker decomposition.
     rank를 받아서 그 rank에 받게 decompositoin한 conv layer들을 sequential 형태로 return 해줌
     """
-    if layer.groups != 1:
-        return layer
+    
+    if layer.groups != 1:         
+        #if layer.in_channels == layer.groups and layer.out_channels == layer.groups:
+            # decomposition 필요가 없음
+            # 가지고 있는 모델에 반례가 없어서 우선 막아두고 실험중. 
+        #    return layer 
+        group_decomp_list = [] 
+        for single_group in torch.split(layer.weight.data,layer.in_channels//layer.groups) :
+            in_c = single_group.shape[0]
+            out_c = single_group.shape[1]
+            splited_layer = nn.Conv2d(in_c,out_c,kernel_size =layer.kernel_size, stride = layer.stride, padding = layer.padding, bias = layer.bias)
+            splited_layer.weight.data =single_group
+            group_decomp_list.append(tucker_decomposition_conv_layer(splited_layer,normed_rank))
+            
+        result = group_decomposition_conv(group_decomp_list, in_channel =layer.in_channels, group_num = layer.groups).to("cuda:0")
+        #return group_decomposition_conv(group_decomp_list, in_channel =layer.in_channels, group_num = layer.groups).to("cuda:0")
+        return result
 
     if hasattr(layer, "rank"):
         normed_rank = getattr(layer, "rank")
@@ -269,6 +284,7 @@ class Objective:
 
 
 if __name__ == "__main__":
+    
     parser = argparse.ArgumentParser(description="findRank.")
     parser.add_argument(
         "--weight", default="/opt/ml/p4-opt-6-zeroki/code/exp/base_2021-06-03_03-17-29/best.pt", type=str, help="model weight path"
@@ -287,6 +303,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
     data_config = read_yaml(cfg=args.data_config) # 학습시 이미지 사이즈 몇이었는지 확인하는 용도.
 
      # 학습된 모델(weight같이) 불러 옴 
