@@ -1,32 +1,31 @@
 import wandb
 import optuna
 import joblib
+import copy
 import inspect
 import argparse
 from datetime import datetime
 import os
 import yaml
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Tuple, Union, List
 
+# torch
 import torch
 import torch.nn as nn
 
-
+# module/class import
+import src
+import src.modules
 from src.model import Model
 from src.utils.common import read_yaml
 from src.utils.macs import calc_macs
-import src
-import src.modules
+from train import train
 
-import wandb
-import optuna
-import joblib
-import inspect
-import copy
+# decompose tensorly
 import tensorly as tl
 from tensorly.decomposition import parafac, partial_tucker
-from typing import List
-from train import train
+
+# warning 무시
 import warnings 
 warnings.filterwarnings('ignore')
 
@@ -38,7 +37,13 @@ for name, obj in inspect.getmembers(src.modules):
     if inspect.isclass(obj):
         MODULE_LIST.append(obj)
 
+        
 class group_decomposition_conv(nn.Module):
+    '''
+    group 수에 맞춰 소분할 한 후, tucker_decomposition_conv_layer 함수를 거친 x값을 다시 concat 후 return 해줍니다. 
+    ex) conv(24,36,kernel_size = 3 , groups = 4)
+        -> conv(6,9,kernel_size = 3 , groups = 1)을 decompose하는 과정을총 4번 반복 후 concat
+    '''
     def __init__(self, layer : nn.Module) -> None:
         super().__init__()
         self.n_groups = layer.groups
@@ -57,6 +62,7 @@ class group_decomposition_conv(nn.Module):
         # sequential 거쳐 나온 값들 다시 concat 
         out = torch.cat(decompose_x , dim = 1)
         return out
+
 
 def tucker_decomposition_conv_layer(
       layer: nn.Module,
@@ -133,7 +139,7 @@ def module_decompose(model_layers : nn.Module):
     
     새로운 문제점 : 
         depthwise conv에 대해서는 channel이 1이라서 decompose를 해줄 필요가 없다. -> 혼동의 여지가 있어 삭제하지 않고 주석처리 해놨습니다.
-        grouped conv일 때 문제가 생긴다. 이때 따로 함수를 만들어서 처리해주자.
+        grouped conv일 때 문제가 생긴다. 이때 따로 클래스를 만들어서 처리해주자. -> group_decomposition_conv
     """
     if type(model_layers) == src.modules.conv.Conv :
         if model_layers.conv.groups != 1 :
