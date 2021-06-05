@@ -1,8 +1,3 @@
-"""Linear module, generator.
-
-- Author: Jongkuk Lim
-- Contact: lim.jeikei@gmail.com
-"""
 from typing import Union
 
 import torch
@@ -15,7 +10,7 @@ from src.utils.torch_utils import Activation
 class Linear(nn.Module):
     """Linear module."""
 
-    def __init__(self, in_channel: int, out_channel: int, activation: Union[str, None]):
+    def __init__(self, in_channel: int, out_channel: int, activation: Union[str, None], dropout_p :float):
         """
 
         Args:
@@ -27,10 +22,11 @@ class Linear(nn.Module):
         super().__init__()
         self.linear = nn.Linear(in_channel, out_channel)
         self.activation = Activation(activation)()
+        self.dropout = nn.Dropout(p=dropout_p)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward."""
-        return self.activation(self.linear(x))
+        return self.activation(self.linear(self.dropout(x)))
 
 
 class LinearGenerator(GeneratorAbstract):
@@ -46,9 +42,11 @@ class LinearGenerator(GeneratorAbstract):
         return self.args[0]
 
     def __call__(self, repeat: int = 1):
-        # TODO: Apply repeat
+
         act = self.args[1] if len(self.args) > 1 else None
+        # dropout probability 가 입력 되지 않을 경우 0로 고정
+        dropout_p = self.args[2] if len(self.args) > 2 else 0.0 
 
         return self._get_module(
-            Linear(self.in_channel, self.out_channel, activation=act)
+            Linear(self.in_channel, self.out_channel, activation=act, dropout_p = dropout_p)
         )
