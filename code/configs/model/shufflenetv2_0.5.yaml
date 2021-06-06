@@ -10,12 +10,12 @@ backbone:
         #kernel_size , stride , padding
         [1,MaxPool, [2,2,0]],
         # output_channel , stride
-        [1, ShuffleNetV2, [48, 2]],
-        [3, ShuffleNetV2, [48, 1]],
-        [1, ShuffleNetV2, [96, 2]],
-        [5, ShuffleNetV2, [96, 1]],
-        [1, ShuffleNetV2, [192, 2]],
-        [3, ShuffleNetV2, [192, 1]],
+        [1, ShuffleNetV2, [2]],
+        [3, ShuffleNetV2, [1]],
+        [1, ShuffleNetV2, [2]],
+        [5, ShuffleNetV2, [1]],
+        [1, ShuffleNetV2, [2]],
+        [3, ShuffleNetV2, [1]],
         [1, Conv, [512, 1, 1]],
         [1, GlobalAvgPool, []],
         [1, Flatten, []],
