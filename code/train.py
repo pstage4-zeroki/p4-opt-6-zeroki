@@ -20,7 +20,8 @@ from src.trainer import TorchTrainer
 from src.utils.common import get_label_counts, read_yaml
 from src.utils.macs import calc_macs
 from src.utils.torch_utils import check_runtime, model_info, seed_everything
-
+from src.scheduler import CosineAnnealingWarmupRestarts
+    
 def train(
     model_config: Dict[str, Any],
     data_config: Dict[str, Any],
@@ -55,12 +56,15 @@ def train(
     optimizer = torch.optim.AdamW(
         model_instance.model.parameters(), lr=data_config["INIT_LR"]
     )
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer=optimizer,
-        max_lr=data_config["INIT_LR"],
-        steps_per_epoch=len(train_dl),
-        epochs=data_config["EPOCHS"],
-        pct_start=0.05,
+    first_cycle_steps = len(train_dl) * data_config["EPOCHS"] /2
+    scheduler = CosineAnnealingWarmupRestarts(
+        optimizer, 
+        first_cycle_steps=first_cycle_steps, 
+        cycle_mult=1.0, 
+        max_lr=data_config["INIT_LR"] , 
+        min_lr=data_config["INIT_LR"] * 0.1, 
+        warmup_steps=int(first_cycle_steps * 0.25), 
+        gamma=0.5
     )
     criterion = CustomCriterion(
         samples_per_cls=get_label_counts(data_config["DATA_PATH"])
