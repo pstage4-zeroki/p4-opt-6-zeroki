@@ -83,8 +83,8 @@ class ModelParser:
         """Parse model."""
         layers: List[nn.Module] = []
         log: str = (
-            f"{'idx':>3} | {'n':>3} | {'params':>10} "
-            f"| {'module':>15} | {'arguments':>20} | {'in_channel':>12} | {'out_channel':>13}"
+            f"{'idx':>3} | {'n':>3} | {'params':>20} "
+            f"| {'module':>25} | {'arguments':>35} | {'in_channel':>12} | {'out_channel':>13}"
         )
         self.log(log)
         self.log(len(log) * "-")  # type: ignore
@@ -106,7 +106,7 @@ class ModelParser:
 
             log = (
                 f"{i:3d} | {repeat:3d} | "
-                f"{m.n_params:10,d} | {m.type:>15} | {str(args):>20} | "
+                f"{m.n_params:20,d} | {m.type:>25} | {str(args):>35} | "
                 f"{str(module_generator.in_channel):>12}"
                 f"{str(module_generator.out_channel):>13}"
             )
