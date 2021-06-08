@@ -67,10 +67,13 @@ def train(
         gamma=0.5
     )
     criterion = CustomCriterion(
-        samples_per_cls=get_label_counts(data_config["DATA_PATH"])
+        samples_per_cls=get_label_counts(data_config["DATA_PATH"]+'/train')
         if data_config["DATASET"] == "TACO"
         else None,
         device=device,
+        fp16 = data_config["FP16"],
+        loss_type= "softmax", # softmax, logit_adjustment_loss,F1, Focal, LabelSmoothing
+        mix = False # if true : loss = 0.25*crossentropy + loss_type
     )
     # Amp loss scaler
     scaler = (
@@ -105,10 +108,10 @@ def train(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model.")
     parser.add_argument(
-        "--model", default="configs/model/mobilenetv3.yaml", type=str, help="model config"
+        "--model", default="configs/model/model_37.yaml", type=str, help="model config"
     )
     parser.add_argument(
-        "--data", default="configs/data/taco.yaml", type=str, help="data config"
+        "--data", default="configs/data/data_37.yaml", type=str, help="data config"
     )
     parser.add_argument(
         "--run_name", default="base", type=str, help="run name for wandb"
@@ -127,7 +130,7 @@ if __name__ == "__main__":
     os.makedirs(log_dir, exist_ok=True)
 
     # for wandb
-    wandb.init(project='zeroki', entity='zeroki', name = args.run_name , save_code = True)
+    wandb.init(project='bohyeon', entity='zeroki', group ='loss_test_with_model_2',name = args.run_name , save_code = True)
     wandb.run.name = args.run_name
     wandb.run.save()
     wandb.config.update(model_config)
