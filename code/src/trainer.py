@@ -72,6 +72,22 @@ def _get_len_label_from_dataset(dataset: Dataset) -> int:
     else:
         raise NotImplementedError
 
+def _get_label_from_dataset(dataset: Dataset) -> int:
+    """Get length of label from dataset.
+
+    Args:
+        dataset: torch dataset
+
+    Returns:
+        labels in set.
+    """
+    if isinstance(dataset, torchvision.datasets.ImageFolder) or isinstance(dataset, torchvision.datasets.vision.VisionDataset):
+        return dataset.classes
+    elif isinstance(dataset, torch.utils.data.Subset):
+        return _get_class_from_dataset(dataset.dataset)
+    else:
+        raise NotImplementedError
+
 
 class TorchTrainer:
     """Pytorch Trainer."""
@@ -125,6 +141,7 @@ class TorchTrainer:
         best_test_acc = -1.0
         best_test_f1 = -1.0
         num_classes = _get_len_label_from_dataset(train_dataloader.dataset)
+        label_list_name = _get_label_from_dataset(train_dataloader.dataset)
         label_list = [i for i in range(num_classes)]
 
         for epoch in range(n_epoch):
@@ -178,6 +195,8 @@ class TorchTrainer:
                     f"Acc: {(correct / total) * 100:.2f}% "
                     f"F1(macro): {f1_score(y_true=gt, y_pred=preds, labels=label_list, average='macro', zero_division=0):.2f}"
                 )
+            wandb.log({'Train conf_mat' : wandb.plot.confusion_matrix(probs=None,y_true=gt, preds=preds,class_names=label_list_name) })
+
             pbar.close()
 
             _, test_f1, test_acc = self.test(
@@ -219,6 +238,7 @@ class TorchTrainer:
         total = 0
 
         num_classes = _get_len_label_from_dataset(test_dataloader.dataset)
+        label_list_name = _get_label_from_dataset(test_dataloader.dataset)
         label_list = [i for i in range(num_classes)]
 
         pbar = tqdm(enumerate(test_dataloader), total=len(test_dataloader))
@@ -256,7 +276,8 @@ class TorchTrainer:
         wandb.log({
             'Valid Loss value': loss,
             'Valid Acc value': accuracy * 100,
-            'Valid F1 value': f1
+            'Valid F1 value': f1,
+            'Valid conf_mat' : wandb.plot.confusion_matrix(probs=None,y_true=gt, preds=preds,class_names=label_list_name)
         })
         
         return loss, f1, accuracy
