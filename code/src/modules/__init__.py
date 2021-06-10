@@ -25,6 +25,10 @@ from src.modules.shufflev2 import (
     ShuffleNetV2,
     ShuffleNetV2Generator,
 )
+from src.modules.mixedconv import (
+    MixNetBlock,
+    MixNetBlockGenerator
+)
 
 from src.modules.linear import Linear, LinearGenerator
 from src.modules.poolings import (
@@ -61,4 +65,6 @@ __all__ = [
     "FusedMBConvGenerator",
     "ShuffleNetV2",
     "ShuffleNetV2Generator",
+    "MixNetBlock",
+    "MixNetBlockGenerator"
 ]
