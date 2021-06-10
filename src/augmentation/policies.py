@@ -25,7 +25,8 @@ def custom_augment_train(
     """Custom data augmentation rule for training CIFAR100."""
     return transforms.Compose(
         [
-            CustomRotation90Resize(img_size, resize=False),
+            CustomRotation90Resize(img_size, resize=True),
+            # SequentialAugmentation([("CustomGridShuffle", 0.5, 0)]),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomAffine(degrees=20, shear=20),
@@ -39,12 +40,12 @@ def custom_augment_train(
 
 
 def custom_augment_test(
-    dataset: str = "CIFAR10", img_size: float = 32
+    dataset: str = "CIFAR10", img_size: float = 96
 ) -> transforms.Compose:
     """Custom data augmentation rule for testing CIFAR100."""
     return transforms.Compose(
         [
-            CustomRotation90Resize(img_size, resize=False),
+            CustomRotation90Resize(img_size, resize=True),
             transforms.ToTensor(),
             transforms.Normalize(
                 DATASET_NORMALIZE_INFO[dataset]["MEAN"],
@@ -55,7 +56,7 @@ def custom_augment_test(
 
 
 def simple_augment_train(
-    dataset: str = "CIFAR10", img_size: float = 32
+    dataset: str = "CIFAR10", img_size: float = 96
 ) -> transforms.Compose:
     """Simple data augmentation rule for training CIFAR100."""
     return transforms.Compose(

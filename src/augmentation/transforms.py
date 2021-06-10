@@ -16,6 +16,7 @@ import PIL.ImageEnhance
 import PIL.ImageOps
 import cv2
 import numpy as np
+from torchvision import transforms
 import torchvision.transforms.functional as F
 
 from src.utils.data import get_rand_bbox_coord
@@ -45,7 +46,8 @@ def transforms_info() -> Dict[
         (Solarize, 256.0, 0.0),
         (Posterize, 8, 4),
         (Cutout, 0, 0.5),
-        (Clahe, 0.1, 2.0)
+        (CustomClahe, 0.1, 2.0),
+        (CustomGridShuffle, 0.0, 0.0),
     ]
     return {f.__name__: (f, low, high) for f, low, high in transforms_list}
 
@@ -168,7 +170,8 @@ def Cutout(img: Image, magnitude: float) -> Image:
     PIL.ImageDraw.Draw(img).rectangle(xy, fill=FILLCOLOR)
     return img
 
-def Clahe(img: Image, magnitude: float) -> Image:
+
+def CustomClahe(img: Image, magnitude: float) -> Image:
     lab = cv2.cvtColor(np.array(img), cv2.COLOR_BGR2LAB) 
     l, a, b = cv2.split(lab) 
     clahe = cv2.createCLAHE(clipLimit=magnitude, tileGridSize=(7, 7)) 
@@ -176,6 +179,18 @@ def Clahe(img: Image, magnitude: float) -> Image:
     img = cv2.merge((cl, a, b)) 
     img = cv2.cvtColor(img, cv2.COLOR_LAB2BGR) 
     return PIL.Image.fromarray(img)
+
+
+def CustomGridShuffle(img: Image, magnitude: float) -> Image:
+    w, h = img.size
+    im = list(transforms.FiveCrop((h//2, w//2))(img))
+    random.shuffle(im)
+    img = PIL.Image.new('RGB', (w, h))
+    img.paste(im[0], (0, 0))
+    img.paste(im[1], (w//2, 0))
+    img.paste(im[2], (0, w//2))
+    img.paste(im[3], (w//2, h//2))
+    return img
 
 
 class SquarePad:
@@ -199,9 +214,15 @@ class CustomRotation90Resize:
         w, h = image.size
         if w < h:
             image = F.rotate(image, angle=90, expand=True)
+
         if self.resize:
             w, h = self.img_size, int(self.img_size*0.723)
             return F.resize(image, (h, w))
         else:
-            return image
+            w, h = image.size
+            vp = int((w - h) / 2)
+            padding = (0, vp, 0, vp)
+            image = F.pad(image, padding, 0, "constant")
+            return F.resize(image, (self.img_size, self.img_size))
+
         
