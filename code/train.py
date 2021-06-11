@@ -108,10 +108,10 @@ def train(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model.")
     parser.add_argument(
-        "--model", default="configs/model/model_37.yaml", type=str, help="model config"
+        "--model", default="/opt/ml/p4-opt-6-zeroki/code/exp/hyper_heejun_06_10/model.yaml", type=str, help="model config"
     )
     parser.add_argument(
-        "--data", default="configs/data/data_37.yaml", type=str, help="data config"
+        "--data", default="/opt/ml/p4-opt-6-zeroki/code/exp/hyper_heejun_06_10/data.yaml", type=str, help="data config"
     )
     parser.add_argument(
         "--run_name", default="base", type=str, help="run name for wandb"
