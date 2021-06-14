@@ -20,13 +20,13 @@ DATASET_NORMALIZE_INFO = {
 
 
 def custom_augment_train(
-    dataset: str = "CIFAR10", img_size: int = 96
+    dataset: str = "CIFAR10", img_size: int = 64
 ) -> transforms.Compose:
     """Custom data augmentation rule for training CIFAR100."""
     return transforms.Compose(
         [
             CustomRotation90Resize(img_size, resize=True),
-            # SequentialAugmentation([("CustomGridShuffle", 0.5, 0)]),
+            SequentialAugmentation([("CustomGridShuffle", 0.2, 0)]),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.RandomAffine(degrees=20, shear=20),
@@ -40,7 +40,7 @@ def custom_augment_train(
 
 
 def custom_augment_test(
-    dataset: str = "CIFAR10", img_size: float = 96
+    dataset: str = "CIFAR10", img_size: float = 64
 ) -> transforms.Compose:
     """Custom data augmentation rule for testing CIFAR100."""
     return transforms.Compose(
