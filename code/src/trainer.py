@@ -9,6 +9,7 @@ import shutil
 from typing import Optional, Tuple, Union
 
 import numpy as np
+import random
 from sklearn.metrics import f1_score
 import torch
 import torch.nn as nn
@@ -22,6 +23,7 @@ import wandb
 
 from src.utils.torch_utils import save_model
 from src.utils.common import get_learning_rate
+from src.utils.data import *
 
 def _get_n_data_from_dataloader(dataloader: DataLoader) -> int:
     """Get a number of data in dataloader.
@@ -158,7 +160,14 @@ class TorchTrainer:
                 else:
                     outputs = self.model(data)
                 outputs = torch.squeeze(outputs)
-                loss = self.criterion(outputs, labels)
+                r = np.random.rand(1)
+                CutMix = 0.3
+                if r > 0.5:
+                    print('Done Cutmix')
+                    target_a , target_b , lam = generate_cutmix_image(data , labels , CutMix)
+                    loss = self.criterion(outputs, target_a) * lam + self.criterion(outputs, target_b) * (1. - lam)
+                else :
+                    loss = self.criterion(outputs, labels)
 
                 self.optimizer.zero_grad()
 
