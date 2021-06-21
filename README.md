@@ -15,3 +15,24 @@
 
 ![image](https://user-images.githubusercontent.com/50580028/119325878-52906380-bcbc-11eb-83ca-ca20efd3f06d.png)
 
+# Run
+## 1. train single file
+```
+python train.py
+```
+## 2. AutoML for Architecture Searching(NAS)
+```
+python tune_architecture.py
+```
+## 3. AutoML for Hyper Parameter Searching
+```
+python tune_hyper.py
+```
+## 4. Decompose Architecture
+```
+python train.py
+```
+## 5. inference(submission.csv)
+```
+python inference.py --model_config [model config file path] --weight [weight file path] --img_root /opt/ml/data/test --data_config [data config file path]
+```
