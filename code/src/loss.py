@@ -1,8 +1,3 @@
-"""Custom loss for long tail problem.
-
-- Author: Junghoon Kim
-- Email: placidus36@gmail.com
-"""
 import numpy as np
 import torch
 import torch.nn as nn
@@ -25,10 +20,6 @@ class CustomCriterion:
 
         
         if loss_type == "softmax":
-            #rev_frequency_per_cls= torch.tensor(1.0/self.frequency_per_cls,dtype=float,device="cuda")
-            #rev_frequency_per_cls = (
-            #    rev_frequency_per_cls.half() if fp16 else rev_frequency_per_cls.float()
-            #)
             self.criterion = nn.CrossEntropyLoss()
         elif loss_type == "F1":
             self.criterion = F1_Loss()
